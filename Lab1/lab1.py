@@ -19,7 +19,7 @@ def main():
     glfw.make_context_current(window)
     glfw.set_key_callback(window, key_callback)
     glfw.set_scroll_callback(window, scroll_callback)
-    glClearColor(1.0, 1.0, 1.0, 1.0)  # Белый фон
+    glClearColor(1.0, 1.0, 1.0, 1.0)  
     while not glfw.window_should_close(window):
         display(window)
     glfw.destroy_window(window)
