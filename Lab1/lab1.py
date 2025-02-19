@@ -2,12 +2,12 @@ import glfw
 from OpenGL.GL import *
 import math
 
-# Инициализация переменных (как в исходном коде)
 delta = 0.1
 angle = 0
 posx = 0
 posy = 0
-size = 0.5 # Размер фигуры
+size = 0.5  
+sides = 5   
 
 def main():
     if not glfw.init():
@@ -29,29 +29,24 @@ def display(window):
     global angle
     glClear(GL_COLOR_BUFFER_BIT)
     glLoadIdentity()
-
-    # Применение трансформаций
     glPushMatrix()
-    glTranslatef(posx, posy, 0.0)  # Перемещение
-    glRotatef(angle, 0.0, 0.0, 1.0)  # Поворот
-    glScalef(size, size, 1.0)  # Масштабирование
-
-    # Рисование восьмиугольника
-    glColor3f(1.0, 0.5, 0.0)  # Оранжевый цвет
+    glTranslatef(posx, posy, 0.0)  
+    glRotatef(angle, 0.0, 0.0, 1.0)  
+    glScalef(size, size, 1.0) 
+    glColor3f(1.0, 0.5, 0.0) 
     glBegin(GL_POLYGON)
-    for i in range(8):
-        theta = 2.0 * math.pi * i / 8
+    for i in range(sides):
+        theta = 2.0 * math.pi * i / sides
         x = math.cos(theta)
         y = math.sin(theta)
         glVertex2f(x, y)
     glEnd()
-
     glPopMatrix()
     glfw.swap_buffers(window)
     glfw.poll_events()
 
 def key_callback(window, key, scancode, action, mods):
-    global posx, posy, angle, size
+    global posx, posy, angle, size, sides
     if action == glfw.PRESS or action == glfw.REPEAT:
         if key == glfw.KEY_RIGHT:
             posx += 0.1
@@ -62,14 +57,24 @@ def key_callback(window, key, scancode, action, mods):
         elif key == glfw.KEY_DOWN:
             posy -= 0.1
         elif key == glfw.KEY_SPACE:
-            angle -= 10.0  # Поворот против часовой стрелки
+            angle -= 10.0  
+        elif key == glfw.KEY_5:  
+            sides = 5
+        elif key == glfw.KEY_6:  
+            sides = 6
+        elif key == glfw.KEY_7:  
+            sides = 7
+        elif key == glfw.KEY_8:  
+            sides = 8
+        elif key == glfw.KEY_9: 
+            sides = 9
 
 def scroll_callback(window, xoffset, yoffset):
     global size
     if xoffset > 0:
         size -= yoffset / 10
     else:
-        size += yoffset / 10  
-        
+        size += yoffset / 10
+
 if __name__ == "__main__":
     main()
