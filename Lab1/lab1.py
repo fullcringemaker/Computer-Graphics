@@ -7,7 +7,7 @@ angle = 0
 posx = 0
 posy = 0
 size = 0.5  
-sides = 5   
+sides = 4   
 
 def main():
     if not glfw.init():
@@ -58,6 +58,8 @@ def key_callback(window, key, scancode, action, mods):
             posy -= 0.1
         elif key == glfw.KEY_SPACE:
             angle -= 10.0  
+        elif key == glfw.KEY_4:  
+            sides = 4
         elif key == glfw.KEY_5:  
             sides = 5
         elif key == glfw.KEY_6:  
