@@ -2,14 +2,13 @@ import glfw
 from OpenGL.GL import *
 import math
 
-delta = 0.1
 angle_x = 0.0
 angle_y = 0.0
 angle_z = 0.0
 size = 1.0
-wireframe = False 
-sectors = 10 
-stacks = 10  
+wireframe = False
+sectors = 10  
+stacks = 10 
 
 def main():
     if not glfw.init():
@@ -40,23 +39,49 @@ def display(window):
     glMatrixMode(GL_MODELVIEW)
     glPushMatrix()
     glRotatef(angle_x, 1, 0, 0) 
-    glRotatef(angle_y, 0, 1, 0)  
-    glRotatef(angle_z, 0, 0, 1)  
+    glRotatef(angle_y, 0, 1, 0) 
+    glRotatef(angle_z, 0, 0, 1)
     glScalef(size, size, size)
     if wireframe:
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)  
     else:
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL) 
-    draw_sphere(sectors, stacks)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)  
+    if sectors <= 4 and stacks <= 4:
+        draw_rhombus()  
+    else:
+        draw_sphere(sectors, stacks)
+    
     glPopMatrix()
+    
     glfw.swap_buffers(window)
     glfw.poll_events()
+
+def draw_rhombus():
+    vertices = [
+        (0, 0, 1),   
+        (1, 1, 0),   
+        (1, -1, 0),  
+        (-1, -1, 0), 
+        (-1, 1, 0),  
+        (0, 0, -1)  
+    ]
+    faces = [
+        (0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 1),
+        (5, 1, 2), (5, 2, 3), (5, 3, 4), (5, 4, 1)
+    ]
+    glColor3f(0.2, 0.4, 1.0)
+    for face in faces:
+        glBegin(GL_TRIANGLES)
+        for vertex in face:
+            glVertex3f(*vertices[vertex])
+        glEnd()
 
 def draw_sphere(sectors, stacks):
     radius = 1.0
     for i in range(stacks):
         theta1 = i * math.pi / stacks
         theta2 = (i + 1) * math.pi / stacks
+        
         for j in range(sectors):
             phi1 = j * 2 * math.pi / sectors
             phi2 = (j + 1) * 2 * math.pi / sectors
@@ -91,8 +116,8 @@ def key_callback(window, key, scancode, action, mods):
             sectors += 1
             stacks += 1
         elif key == glfw.KEY_DOWN:
-            sectors = max(3, sectors - 1)
-            stacks = max(3, stacks - 1)
+            sectors = max(4, sectors - 1)  
+            stacks = max(4, stacks - 1)
 
 def scroll_callback(window, xoffset, yoffset):
     global size
