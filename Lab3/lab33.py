@@ -13,7 +13,7 @@ stacks = 10
 def main():
     if not glfw.init():
         return
-    window = glfw.create_window(640, 640, "3D Sphere", None, None)
+    window = glfw.create_window(640, 640, "Lab3", None, None)
     if not window:
         glfw.terminate()
         return
