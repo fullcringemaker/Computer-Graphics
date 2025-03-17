@@ -50,9 +50,7 @@ def display(window):
         draw_rhombus()  
     else:
         draw_sphere(sectors, stacks)
-    
     glPopMatrix()
-    
     glfw.swap_buffers(window)
     glfw.poll_events()
 
@@ -81,7 +79,6 @@ def draw_sphere(sectors, stacks):
     for i in range(stacks):
         theta1 = i * math.pi / stacks
         theta2 = (i + 1) * math.pi / stacks
-        
         for j in range(sectors):
             phi1 = j * 2 * math.pi / sectors
             phi2 = (j + 1) * 2 * math.pi / sectors
