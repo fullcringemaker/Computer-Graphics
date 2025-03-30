@@ -20,9 +20,11 @@ def init_pixel_buffer(width, height):
     global pixel_buffer, filter_buffer, buffer_width, buffer_height
     buffer_width = width
     buffer_height = height
+    # Создаем новые буферы с новыми размерами
     new_pixel_buffer = [[0 for _ in range(height)] for _ in range(width)]
     new_filter_buffer = [[0 for _ in range(height)] for _ in range(width)]
     
+    # Если есть старые данные, масштабируем их в новые буферы
     if pixel_buffer is not None:
         for x in range(min(width, buffer_width)):
             for y in range(min(height, buffer_height)):
@@ -116,22 +118,16 @@ def display(window):
     
     glBegin(GL_POINTS)
     if show_filtered:
-        # Отфильтрованное изображение - зеленым
         for x in range(buffer_width):
             for y in range(buffer_height):
                 if filter_buffer[x][y]:
                     glColor3f(0.0, 1.0, 0.0)
                     glVertex2f(x / buffer_width * 2 - 1, 1 - y / buffer_height * 2)
     else:
-        # Оригинальное изображение
         for x in range(buffer_width):
             for y in range(buffer_height):
                 if pixel_buffer[x][y]:
-                    # Первая точка - красная, остальные - белые
-                    if len(points) > 0 and x == points[0][0] and y == points[0][1]:
-                        glColor3f(1.0, 0.0, 0.0)  # Красный
-                    else:
-                        glColor3f(1.0, 1.0, 1.0)  # Белый
+                    glColor3f(1.0, 1.0, 1.0)
                     glVertex2f(x / buffer_width * 2 - 1, 1 - y / buffer_height * 2)
     glEnd()
     
@@ -192,6 +188,7 @@ def window_size_callback(window, width, height):
     glViewport(0, 0, width, height)
     init_pixel_buffer(width, height)
     
+    # Перерисовываем фигуру при изменении размера
     if len(points) >= 3:
         clear_buffers()
         for i in range(len(points)):
