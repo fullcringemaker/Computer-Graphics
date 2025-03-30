@@ -3,21 +3,33 @@ from OpenGL.GL import *
 import math
 
 # Глобальные переменные
-points = []  # Точки многоугольника
-polygon_complete = False
+points = []
 buffer_width = 640
 buffer_height = 640
 pixel_buffer = None
 filter_buffer = None
 show_filtered = False
 show_original = True
+filter_size = 3
+filter_threshold = 0.3
+window_width = 640
+window_height = 640
 
 def init_pixel_buffer(width, height):
     global pixel_buffer, filter_buffer, buffer_width, buffer_height
     buffer_width = width
     buffer_height = height
-    pixel_buffer = [ [0 for _ in range(height)] for _ in range(width) ]
-    filter_buffer = [ [0 for _ in range(height)] for _ in range(width) ]
+    new_pixel_buffer = [[0 for _ in range(height)] for _ in range(width)]
+    new_filter_buffer = [[0 for _ in range(height)] for _ in range(width)]
+    
+    if pixel_buffer is not None:
+        for x in range(min(width, len(pixel_buffer))):
+            for y in range(min(height, len(pixel_buffer[0]))):
+                new_pixel_buffer[x][y] = pixel_buffer[x][y]
+                new_filter_buffer[x][y] = filter_buffer[x][y]
+    
+    pixel_buffer = new_pixel_buffer
+    filter_buffer = new_filter_buffer
 
 def clear_buffers():
     global pixel_buffer, filter_buffer
@@ -31,7 +43,7 @@ def draw_pixel(x, y, color=1):
         pixel_buffer[x][y] = color
 
 def draw_line(x1, y1, x2, y2):
-    # Вещественный алгоритм Брезенхема
+    # Вещественный алгоритм Брезенхема (4-связный)
     dx = abs(x2 - x1)
     dy = abs(y2 - y1)
     x, y = x1, y1
@@ -58,84 +70,118 @@ def draw_line(x1, y1, x2, y2):
             y += sy
     draw_pixel(x, y)
 
-def fill_polygon():
-    global points, pixel_buffer
-    
+def scanline_fill():
+    """Построчный алгоритм заполнения многоугольника без defaultdict"""
     if len(points) < 3:
         return
     
-    # Находим min и max Y
-    min_y = min(p[1] for p in points)
-    max_y = max(p[1] for p in points)
+    # 1. Создаем таблицу ребер (Edge Table) с обычным словарем
+    edge_table = {}
     
-    # Для каждой строки сканирования
-    for y in range(min_y, max_y + 1):
-        intersections = []
+    # 2. Заполняем таблицу ребер
+    for i in range(len(points)):
+        x1, y1 = points[i]
+        x2, y2 = points[(i + 1) % len(points)]
         
-        # Находим пересечения со всеми ребрами
-        for i in range(len(points)):
-            p1 = points[i]
-            p2 = points[(i + 1) % len(points)]
+        if y1 == y2:
+            continue  # Горизонтальные ребра игнорируем
+        
+        if y1 > y2:
+            x1, x2 = x2, x1
+            y1, y2 = y2, y1
+        
+        dx = x2 - x1
+        dy = y2 - y1
+        inv_slope = dx / dy
+        
+        if y1 not in edge_table:
+            edge_table[y1] = []
+        edge_table[y1].append({'x': x1, 'dx': inv_slope, 'y_max': y2})
+    
+    if not edge_table:
+        return
+    
+    # 3. Находим диапазон сканирования по Y
+    y_min = min(edge_table.keys())
+    y_max = max(max(edge['y_max'] for edge in edges) for edges in edge_table.values())
+    
+    # 4. Инициализируем активный список ребер (Active Edge List)
+    ael = []
+    
+    for y in range(y_min, y_max + 1):
+        # 5. Добавляем новые ребра из ET в AEL
+        if y in edge_table:
+            ael.extend(edge_table[y])
+        
+        # 6. Удаляем ребра, для которых y >= y_max
+        ael = [edge for edge in ael if y < edge['y_max']]
+        
+        # 7. Сортируем AEL по x координате
+        ael.sort(key=lambda edge: edge['x'])
+        
+        # 8. Заполняем пиксели между парами ребер
+        for i in range(0, len(ael), 2):
+            if i + 1 >= len(ael):
+                break
             
-            # Проверяем, пересекает ли ребро текущую строку сканирования
-            if (p1[1] <= y < p2[1]) or (p2[1] <= y < p1[1]):
-                # Вычисляем X пересечения
-                if p1[1] != p2[1]:
-                    x = p1[0] + (y - p1[1]) * (p2[0] - p1[0]) / (p2[1] - p1[1])
-                    intersections.append(x)
+            x_start = int(ael[i]['x'])
+            x_end = int(ael[i + 1]['x'])
+            
+            for x in range(x_start, x_end + 1):
+                draw_pixel(x, y)
         
-        # Сортируем точки пересечения
-        intersections.sort()
-        
-        # Заполняем пиксели между парами пересечений
-        for i in range(0, len(intersections), 2):
-            if i + 1 < len(intersections):
-                x_start = int(intersections[i])
-                x_end = int(intersections[i + 1])
-                for x in range(x_start, x_end + 1):
-                    draw_pixel(x, y)
+        # 9. Обновляем x координаты для следующей строки сканирования
+        for edge in ael:
+            edge['x'] += edge['dx']
+
+def fill_polygon():
+    """Заполнение многоугольника с использованием построчного алгоритма"""
+    if len(points) < 3:
+        return
+    
+    # Сначала рисуем границы
+    for i in range(len(points)):
+        p1 = points[i]
+        p2 = points[(i + 1) % len(points)]
+        draw_line(p1[0], p1[1], p2[0], p2[1])
+    
+    # Затем применяем построчное заполнение
+    scanline_fill()
 
 def apply_filter():
-    global pixel_buffer, filter_buffer
-    
-    # Размер фильтра
-    N = 3
-    half = N // 2
-    
+    """Фильтр 3x3 с усреднением"""
+    half = filter_size // 2
     for y in range(half, buffer_height - half):
         for x in range(half, buffer_width - half):
             total = 0
             count = 0
-            
-            # Суммируем значения в области NxN
             for fy in range(-half, half + 1):
                 for fx in range(-half, half + 1):
                     nx, ny = x + fx, y + fy
                     if 0 <= nx < buffer_width and 0 <= ny < buffer_height:
                         total += pixel_buffer[nx][ny]
                         count += 1
-            
-            # Усредняем
-            if count > 0:
-                filter_buffer[x][y] = 1 if total / count > 0.5 else 0
+            filter_buffer[x][y] = 1 if total / count > filter_threshold else 0
 
 def display(window):
     glClear(GL_COLOR_BUFFER_BIT)
     glLoadIdentity()
     
-    # Отрисовка буфера
     glBegin(GL_POINTS)
     if show_filtered:
-        # Отрисовка отфильтрованного изображения
         for x in range(buffer_width):
             for y in range(buffer_height):
                 if filter_buffer[x][y]:
+                    glColor3f(0.0, 1.0, 0.0)  # Зеленый для фильтрованного
                     glVertex2f(x / buffer_width * 2 - 1, 1 - y / buffer_height * 2)
-    elif show_original:
-        # Отрисовка оригинального изображения
+    else:
         for x in range(buffer_width):
             for y in range(buffer_height):
                 if pixel_buffer[x][y]:
+                    if len(points) > 0 and x == points[0][0] and y == points[0][1]:
+                        glColor3f(1.0, 0.0, 0.0)  # Красный для первой точки
+                    else:
+                        glColor3f(1.0, 1.0, 1.0)  # Белый для остальных
                     glVertex2f(x / buffer_width * 2 - 1, 1 - y / buffer_height * 2)
     glEnd()
     
@@ -143,72 +189,66 @@ def display(window):
     glfw.poll_events()
 
 def mouse_button_callback(window, button, action, mods):
-    global points, polygon_complete
+    global points, show_filtered, show_original
     
     if button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS:
+        show_original = True
+        show_filtered = False
+        
         x, y = glfw.get_cursor_pos(window)
         width, height = glfw.get_window_size(window)
-        
-        # Масштабируем координаты в размер буфера
         x = int(x / width * buffer_width)
         y = int(y / height * buffer_height)
         
-        if polygon_complete:
-            # Если многоугольник уже завершен, начинаем новый
-            points = []
-            clear_buffers()
-            polygon_complete = False
-        
-        points.append((x, y))
         print(f"Added point: ({x}, {y})")
         
-        # Отрисовываем линии между точками
-        if len(points) > 1:
-            draw_line(points[-2][0], points[-2][1], points[-1][0], points[-1][1])
+        if len(points) > 0:
+            draw_line(points[-1][0], points[-1][1], x, y)
+        
+        points.append((x, y))
+        
+        if len(points) >= 3:
+            clear_buffers()
+            fill_polygon()
 
 def key_callback(window, key, scancode, action, mods):
-    global polygon_complete, show_filtered, show_original
+    global points, show_filtered, show_original
     
     if action == glfw.PRESS:
-        if key == glfw.KEY_ENTER and len(points) >= 3 and not polygon_complete:
-            # Завершаем многоугольник
-            draw_line(points[-1][0], points[-1][1], points[0][0], points[0][1])
-            fill_polygon()
-            polygon_complete = True
-            print("Polygon completed and filled")
-        
-        elif key == glfw.KEY_F:
-            # Применяем фильтр
-            if polygon_complete:
-                apply_filter()
-                show_filtered = True
-                show_original = False
-                print("Filter applied")
-        
+        if key == glfw.KEY_F and len(points) >= 3:
+            apply_filter()
+            show_filtered = True
+            show_original = False
+            print("Filter applied (3x3)")
         elif key == glfw.KEY_O:
-            # Показываем оригинал
             show_original = True
             show_filtered = False
             print("Showing original")
-        
         elif key == glfw.KEY_C:
-            # Очищаем
             points.clear()
             clear_buffers()
-            polygon_complete = False
             show_original = True
             show_filtered = False
             print("Canvas cleared")
 
 def window_size_callback(window, width, height):
+    global window_width, window_height
+    window_width = width
+    window_height = height
     glViewport(0, 0, width, height)
     init_pixel_buffer(width, height)
+    
+    if len(points) >= 3:
+        clear_buffers()
+        fill_polygon()
 
 def main():
+    global window_width, window_height
+    
     if not glfw.init():
         return
     
-    window = glfw.create_window(640, 640, "Polygon Rasterization", None, None)
+    window = glfw.create_window(window_width, window_height, "Lab4", None, None)
     if not window:
         glfw.terminate()
         return
@@ -218,9 +258,7 @@ def main():
     glfw.set_mouse_button_callback(window, mouse_button_callback)
     glfw.set_window_size_callback(window, window_size_callback)
     
-    # Инициализация буфера
-    width, height = glfw.get_window_size(window)
-    init_pixel_buffer(width, height)
+    init_pixel_buffer(window_width, window_height)
     
     glClearColor(0.0, 0.0, 0.0, 1.0)
     glPointSize(1.0)
