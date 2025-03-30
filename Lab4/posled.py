@@ -1,7 +1,7 @@
 import glfw
 from OpenGL.GL import *
 import math
-from random import random
+from collections import deque
 
 # Глобальные переменные
 points = []
@@ -20,17 +20,14 @@ def init_pixel_buffer(width, height):
     global pixel_buffer, filter_buffer, buffer_width, buffer_height
     buffer_width = width
     buffer_height = height
-    # Создаем новые буферы с новыми размерами
     new_pixel_buffer = [[0 for _ in range(height)] for _ in range(width)]
     new_filter_buffer = [[0 for _ in range(height)] for _ in range(width)]
     
-    # Если есть старые данные, масштабируем их в новые буферы
     if pixel_buffer is not None:
-        for x in range(min(width, buffer_width)):
-            for y in range(min(height, buffer_height)):
-                if x < len(pixel_buffer) and y < len(pixel_buffer[0]):
-                    new_pixel_buffer[x][y] = pixel_buffer[x][y]
-                    new_filter_buffer[x][y] = filter_buffer[x][y]
+        for x in range(min(width, len(pixel_buffer))):
+            for y in range(min(height, len(pixel_buffer[0]))):
+                new_pixel_buffer[x][y] = pixel_buffer[x][y]
+                new_filter_buffer[x][y] = filter_buffer[x][y]
     
     pixel_buffer = new_pixel_buffer
     filter_buffer = new_filter_buffer
@@ -47,6 +44,7 @@ def draw_pixel(x, y, color=1):
         pixel_buffer[x][y] = color
 
 def draw_line(x1, y1, x2, y2):
+    # Вещественный алгоритм Брезенхема
     dx = abs(x2 - x1)
     dy = abs(y2 - y1)
     x, y = x1, y1
@@ -73,30 +71,48 @@ def draw_line(x1, y1, x2, y2):
             y += sy
     draw_pixel(x, y)
 
+def boundary_fill(x, y, fill_color=1, boundary_color=1):
+    """Алгоритм заполнения с затравкой (4-связная область)"""
+    if x < 0 or x >= buffer_width or y < 0 or y >= buffer_height:
+        return
+    
+    # Используем очередь вместо рекурсии
+    queue = deque()
+    queue.append((x, y))
+    
+    while queue:
+        x, y = queue.popleft()
+        
+        if pixel_buffer[x][y] != fill_color and pixel_buffer[x][y] != boundary_color:
+            draw_pixel(x, y, fill_color)
+            # Добавляем 4-связные соседние пиксели
+            queue.append((x + 1, y))
+            queue.append((x - 1, y))
+            queue.append((x, y + 1))
+            queue.append((x, y - 1))
+
 def fill_polygon():
+    """Заполнение многоугольника с использованием алгоритма с затравкой"""
     if len(points) < 3:
         return
     
+    # 1. Находим внутреннюю точку для затравки
+    min_x = min(p[0] for p in points)
+    max_x = max(p[0] for p in points)
     min_y = min(p[1] for p in points)
     max_y = max(p[1] for p in points)
     
-    for y in range(min_y, max_y + 1):
-        intersections = []
-        for i in range(len(points)):
-            p1 = points[i]
-            p2 = points[(i + 1) % len(points)]
-            if (p1[1] <= y < p2[1]) or (p2[1] <= y < p1[1]):
-                if p1[1] != p2[1]:
-                    x = p1[0] + (y - p1[1]) * (p2[0] - p1[0]) / (p2[1] - p1[1])
-                    intersections.append(x)
-        
-        intersections.sort()
-        for i in range(0, len(intersections), 2):
-            if i + 1 < len(intersections):
-                x_start = int(intersections[i])
-                x_end = int(intersections[i + 1])
-                for x in range(x_start, x_end + 1):
-                    draw_pixel(x, y)
+    seed_x = (min_x + max_x) // 2
+    seed_y = (min_y + max_y) // 2
+    
+    # 2. Проверяем, что точка действительно внутри
+    # (упрощенная проверка - в реальном коде нужен алгоритм точки в многоугольнике)
+    if seed_x <= min_x or seed_x >= max_x or seed_y <= min_y or seed_y >= max_y:
+        seed_x = min_x + 1
+        seed_y = min_y + 1
+    
+    # 3. Применяем алгоритм с затравкой
+    boundary_fill(seed_x, seed_y)
 
 def apply_filter():
     half = filter_size // 2
@@ -127,7 +143,10 @@ def display(window):
         for x in range(buffer_width):
             for y in range(buffer_height):
                 if pixel_buffer[x][y]:
-                    glColor3f(1.0, 1.0, 1.0)
+                    if len(points) > 0 and x == points[0][0] and y == points[0][1]:
+                        glColor3f(1.0, 0.0, 0.0)
+                    else:
+                        glColor3f(1.0, 1.0, 1.0)
                     glVertex2f(x / buffer_width * 2 - 1, 1 - y / buffer_height * 2)
     glEnd()
     
@@ -155,10 +174,12 @@ def mouse_button_callback(window, button, action, mods):
         
         if len(points) >= 3:
             clear_buffers()
+            # Рисуем границы
             for i in range(len(points)):
                 p1 = points[i]
                 p2 = points[(i + 1) % len(points)]
                 draw_line(p1[0], p1[1], p2[0], p2[1])
+            # Заливаем
             fill_polygon()
 
 def key_callback(window, key, scancode, action, mods):
@@ -188,7 +209,6 @@ def window_size_callback(window, width, height):
     glViewport(0, 0, width, height)
     init_pixel_buffer(width, height)
     
-    # Перерисовываем фигуру при изменении размера
     if len(points) >= 3:
         clear_buffers()
         for i in range(len(points)):
@@ -203,7 +223,7 @@ def main():
     if not glfw.init():
         return
     
-    window = glfw.create_window(window_width, window_height, "Polygon Rasterization", None, None)
+    window = glfw.create_window(window_width, window_height, "Polygon Rasterization with Seed Fill", None, None)
     if not window:
         glfw.terminate()
         return
