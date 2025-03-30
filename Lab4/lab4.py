@@ -12,7 +12,7 @@ filter_buffer = None
 show_filtered = False
 show_original = True
 filter_size = 3
-filter_threshold = 0.3
+filter_threshold = 0.5
 window_width = 640
 window_height = 640
 
