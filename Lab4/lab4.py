@@ -1,6 +1,7 @@
 import glfw
 from OpenGL.GL import *
 import math
+from collections import defaultdict
 
 # Глобальные переменные
 points = []
@@ -43,7 +44,7 @@ def draw_pixel(x, y, color=1):
         pixel_buffer[x][y] = color
 
 def draw_line(x1, y1, x2, y2):
-    # Вещественный алгоритм Брезенхема (4-связный)
+    # Вещественный алгоритм Брезенхема
     dx = abs(x2 - x1)
     dy = abs(y2 - y1)
     x, y = x1, y1
@@ -71,12 +72,12 @@ def draw_line(x1, y1, x2, y2):
     draw_pixel(x, y)
 
 def scanline_fill():
-    """Построчный алгоритм заполнения многоугольника без defaultdict"""
+    """Построчный алгоритм заполнения многоугольника"""
     if len(points) < 3:
         return
     
-    # 1. Создаем таблицу ребер (Edge Table) с обычным словарем
-    edge_table = {}
+    # 1. Создаем таблицу ребер (Edge Table)
+    edge_table = defaultdict(list)
     
     # 2. Заполняем таблицу ребер
     for i in range(len(points)):
@@ -94,8 +95,6 @@ def scanline_fill():
         dy = y2 - y1
         inv_slope = dx / dy
         
-        if y1 not in edge_table:
-            edge_table[y1] = []
         edge_table[y1].append({'x': x1, 'dx': inv_slope, 'y_max': y2})
     
     if not edge_table:
@@ -103,7 +102,7 @@ def scanline_fill():
     
     # 3. Находим диапазон сканирования по Y
     y_min = min(edge_table.keys())
-    y_max = max(max(edge['y_max'] for edge in edges) for edges in edge_table.values())
+    y_max = max(edge['y_max'] for edges in edge_table.values() for edge in edges)
     
     # 4. Инициализируем активный список ребер (Active Edge List)
     ael = []
@@ -149,7 +148,6 @@ def fill_polygon():
     scanline_fill()
 
 def apply_filter():
-    """Фильтр 3x3 с усреднением"""
     half = filter_size // 2
     for y in range(half, buffer_height - half):
         for x in range(half, buffer_width - half):
@@ -172,16 +170,16 @@ def display(window):
         for x in range(buffer_width):
             for y in range(buffer_height):
                 if filter_buffer[x][y]:
-                    glColor3f(0.0, 1.0, 0.0)  # Зеленый для фильтрованного
+                    glColor3f(0.0, 1.0, 0.0)
                     glVertex2f(x / buffer_width * 2 - 1, 1 - y / buffer_height * 2)
     else:
         for x in range(buffer_width):
             for y in range(buffer_height):
                 if pixel_buffer[x][y]:
                     if len(points) > 0 and x == points[0][0] and y == points[0][1]:
-                        glColor3f(1.0, 0.0, 0.0)  # Красный для первой точки
+                        glColor3f(1.0, 0.0, 0.0)
                     else:
-                        glColor3f(1.0, 1.0, 1.0)  # Белый для остальных
+                        glColor3f(1.0, 1.0, 1.0)
                     glVertex2f(x / buffer_width * 2 - 1, 1 - y / buffer_height * 2)
     glEnd()
     
@@ -248,7 +246,7 @@ def main():
     if not glfw.init():
         return
     
-    window = glfw.create_window(window_width, window_height, "Lab4", None, None)
+    window = glfw.create_window(window_width, window_height, "Polygon Rasterization with Scanline Fill", None, None)
     if not window:
         glfw.terminate()
         return
