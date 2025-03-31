@@ -1,17 +1,20 @@
+
+Анализ кода на соответствие заданию
 import glfw
 from OpenGL.GL import *
 import numpy as np
 
 # Глобальные переменные
 points = []  # Точки многоугольника
-buffer_size = (640, 640)  # Начальный размер буфера
+original_buffer_size = (640, 640)  # Фиксированный размер буфера с изображением
+current_window_size = (640, 640)    # Текущий размер окна
 draw_buffer = None  # Буфер для растеризации
 
 def init_draw_buffer(width, height):
     """Инициализация буфера для растеризации"""
-    global draw_buffer
-    draw_buffer = np.zeros((height, width, 3), dtype=np.float32)
-    clear_draw_buffer(silent=True)
+    global draw_buffer, original_buffer_size
+    original_buffer_size = (width, height)
+    draw_buffer = np.ones((height, width, 3), dtype=np.float32)  # Белый фон
 
 def clear_draw_buffer(silent=False):
     """Очистка буфера для растеризации"""
@@ -21,27 +24,16 @@ def clear_draw_buffer(silent=False):
     if not silent:
         print("Холст очищен")
 
-def resize_draw_buffer(width, height):
-    """Изменение размера буфера"""
-    global draw_buffer, buffer_size
-    old_buffer = draw_buffer
-    init_draw_buffer(width, height)
-    if old_buffer is not None:
-        h = min(height, old_buffer.shape[0])
-        w = min(width, old_buffer.shape[1])
-        draw_buffer[:h, :w] = old_buffer[:h, :w]
-    buffer_size = (width, height)
-
 def set_pixel(x, y, color=(0.0, 0.0, 0.0)):
     """Установка пикселя в буфере"""
-    global draw_buffer
-    if 0 <= x < buffer_size[0] and 0 <= y < buffer_size[1]:
+    global draw_buffer, original_buffer_size
+    if 0 <= x < original_buffer_size[0] and 0 <= y < original_buffer_size[1]:
         draw_buffer[y, x] = color
 
 def get_pixel(x, y):
     """Получение цвета пикселя из буфера"""
-    global draw_buffer
-    if 0 <= x < buffer_size[0] and 0 <= y < buffer_size[1]:
+    global draw_buffer, original_buffer_size
+    if 0 <= x < original_buffer_size[0] and 0 <= y < original_buffer_size[1]:
         return draw_buffer[y, x]
     return (1.0, 1.0, 1.0)
 
@@ -85,7 +77,7 @@ def boundary_fill(x, y, boundary_color, fill_color):
             left += 1
             
             right = x
-            while right < buffer_size[0] and (get_pixel(right, y) != boundary_color).any() and (get_pixel(right, y) != fill_color).any():
+            while right < original_buffer_size[0] and (get_pixel(right, y) != boundary_color).any() and (get_pixel(right, y) != fill_color).any():
                 right += 1
             right -= 1
             
@@ -93,7 +85,7 @@ def boundary_fill(x, y, boundary_color, fill_color):
                 set_pixel(i, y, fill_color)
             
             for ny in [y - 1, y + 1]:
-                if 0 <= ny < buffer_size[1]:
+                if 0 <= ny < original_buffer_size[1]:
                     add_to_stack = False
                     for i in range(left, right + 1):
                         if (get_pixel(i, ny) != boundary_color).any() and (get_pixel(i, ny) != fill_color).any():
@@ -110,7 +102,7 @@ def apply_box_filter():
         return
     
     new_buffer = np.copy(draw_buffer)
-    height, width = draw_buffer.shape[0], draw_buffer.shape[1]
+    height, width = original_buffer_size[1], original_buffer_size[0]
     
     for y in range(1, height - 1):
         for x in range(1, width - 1):
@@ -147,7 +139,13 @@ def display(window):
     glClear(GL_COLOR_BUFFER_BIT)
     
     if draw_buffer is not None:
-        glDrawPixels(buffer_size[0], buffer_size[1], GL_RGB, GL_FLOAT, draw_buffer)
+        # Масштабирование изображения под текущий размер окна
+        glPixelZoom(
+            current_window_size[0] / original_buffer_size[0],
+            current_window_size[1] / original_buffer_size[1]
+        )
+        glDrawPixels(original_buffer_size[0], original_buffer_size[1], 
+                    GL_RGB, GL_FLOAT, draw_buffer)
     
     glfw.swap_buffers(window)
     glfw.poll_events()
@@ -165,9 +163,9 @@ def mouse_button_callback(window, button, action, mods):
     """Обработка кликов мыши"""
     if button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS:
         xpos, ypos = glfw.get_cursor_pos(window)
-        width, height = glfw.get_window_size(window)
-        x = int(xpos * buffer_size[0] / width)
-        y = buffer_size[1] - int(ypos * buffer_size[1] / height) - 1
+        # Нормализация координат к оригинальному размеру буфера
+        x = int(xpos * original_buffer_size[0] / current_window_size[0])
+        y = original_buffer_size[1] - int(ypos * original_buffer_size[1] / current_window_size[1]) - 1
         
         points.append((x, y))
         print(f"Добавлена точка: ({x}, {y})")
@@ -178,16 +176,15 @@ def mouse_button_callback(window, button, action, mods):
 
 def window_size_callback(window, width, height):
     """Обработка изменения размера окна"""
+    global current_window_size
+    current_window_size = (width, height)
     glViewport(0, 0, width, height)
-    new_width = max(1, int(buffer_size[0] * width / 640))
-    new_height = max(1, int(buffer_size[1] * height / 640))
-    resize_draw_buffer(new_width, new_height)
 
 def main():
     if not glfw.init():
         return
     
-    window = glfw.create_window(640, 640, "Lab3 - Rasterization", None, None)
+    window = glfw.create_window(640, 640, "Lab4", None, None)
     if not window:
         glfw.terminate()
         return
