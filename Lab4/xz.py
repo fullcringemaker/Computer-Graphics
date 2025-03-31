@@ -1,5 +1,3 @@
-
-Анализ кода на соответствие заданию
 import glfw
 from OpenGL.GL import *
 import numpy as np
