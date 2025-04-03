@@ -1,60 +1,62 @@
 import glfw
 from OpenGL.GL import *
-import math
-from collections import defaultdict
 
-# Глобальные переменные
-points = []
-buffer_width = 640
-buffer_height = 640
-pixel_buffer = None
-filter_buffer = None
-show_filtered = False
-show_original = True
-filter_size = 3
-filter_threshold = 0.5
-window_width = 640
-window_height = 640
+points = []  # Точки многоугольника
+original_buffer_size = (640, 640)  # Фиксированный размер буфера с изображением
+current_window_size = (640, 640)    # Текущий размер окна
+draw_buffer = None  # Буфер для растеризации (будет списком байт)
 
-def init_pixel_buffer(width, height):
-    global pixel_buffer, filter_buffer, buffer_width, buffer_height
-    buffer_width = width
-    buffer_height = height
-    new_pixel_buffer = [[0 for _ in range(height)] for _ in range(width)]
-    new_filter_buffer = [[0 for _ in range(height)] for _ in range(width)]
-    
-    if pixel_buffer is not None:
-        for x in range(min(width, len(pixel_buffer))):
-            for y in range(min(height, len(pixel_buffer[0]))):
-                new_pixel_buffer[x][y] = pixel_buffer[x][y]
-                new_filter_buffer[x][y] = filter_buffer[x][y]
-    
-    pixel_buffer = new_pixel_buffer
-    filter_buffer = new_filter_buffer
+def init_draw_buffer(width, height):
+    """Инициализация буфера для растеризации"""
+    global draw_buffer, original_buffer_size
+    original_buffer_size = (width, height)
+    # Создаем буфер как массив байт (width * height * 3 компоненты RGB)
+    draw_buffer = bytearray([255] * (width * height * 3))  # Белый фон
 
-def clear_buffers():
-    global pixel_buffer, filter_buffer
-    for x in range(buffer_width):
-        for y in range(buffer_height):
-            pixel_buffer[x][y] = 0
-            filter_buffer[x][y] = 0
+def clear_draw_buffer(silent=False):
+    """Очистка буфера для растеризации"""
+    global draw_buffer
+    if draw_buffer is not None:
+        draw_buffer = bytearray([255] * (original_buffer_size[0] * original_buffer_size[1] * 3))
+    if not silent:
+        print("Холст очищен")
 
-def draw_pixel(x, y, color=1):
-    if 0 <= x < buffer_width and 0 <= y < buffer_height:
-        pixel_buffer[x][y] = color
+def set_pixel(x, y, color=(0.0, 0.0, 0.0)):
+    """Установка пикселя в буфере"""
+    global draw_buffer, original_buffer_size
+    if 0 <= x < original_buffer_size[0] and 0 <= y < original_buffer_size[1]:
+        index = (y * original_buffer_size[0] + x) * 3
+        # Преобразуем цвет из [0.0, 1.0] в [0, 255]
+        r = int(color[0] * 255)
+        g = int(color[1] * 255)
+        b = int(color[2] * 255)
+        draw_buffer[index] = r
+        draw_buffer[index+1] = g
+        draw_buffer[index+2] = b
 
-def draw_line(x1, y1, x2, y2):
-    # Вещественный алгоритм Брезенхема
-    dx = abs(x2 - x1)
-    dy = abs(y2 - y1)
-    x, y = x1, y1
-    sx = -1 if x1 > x2 else 1
-    sy = -1 if y1 > y2 else 1
+def get_pixel(x, y):
+    """Получение цвета пикселя из буфера"""
+    global draw_buffer, original_buffer_size
+    if 0 <= x < original_buffer_size[0] and 0 <= y < original_buffer_size[1]:
+        index = (y * original_buffer_size[0] + x) * 3
+        r = draw_buffer[index] / 255.0
+        g = draw_buffer[index+1] / 255.0
+        b = draw_buffer[index+2] / 255.0
+        return (r, g, b)
+    return (1.0, 1.0, 1.0)  # Белый цвет для пикселей вне буфера
+
+def bresenham_line(x0, y0, x1, y1):
+    """Алгоритм Брезенхема для растеризации отрезка"""
+    dx = abs(x1 - x0)
+    dy = abs(y1 - y0)
+    x, y = x0, y0
+    sx = -1 if x0 > x1 else 1
+    sy = -1 if y0 > y1 else 1
     
     if dx > dy:
         err = dx / 2.0
-        while x != x2:
-            draw_pixel(x, y)
+        while x != x1:
+            set_pixel(x, y)
             err -= dy
             if err < 0:
                 y += sy
@@ -62,191 +64,173 @@ def draw_line(x1, y1, x2, y2):
             x += sx
     else:
         err = dy / 2.0
-        while y != y2:
-            draw_pixel(x, y)
+        while y != y1:
+            set_pixel(x, y)
             err -= dx
             if err < 0:
                 x += sx
                 err += dy
             y += sy
-    draw_pixel(x, y)
+    set_pixel(x, y)
 
-def scanline_fill():
-    """Построчный алгоритм заполнения многоугольника"""
-    if len(points) < 3:
-        return
+def boundary_fill(x, y, boundary_color, fill_color):
+    """Алгоритм построчного заполнения с затравкой"""
+    stack = [(x, y)]
+    boundary_rgb = tuple(int(c * 255) for c in boundary_color)
+    fill_rgb = tuple(int(c * 255) for c in fill_color)
     
-    # 1. Создаем таблицу ребер (Edge Table)
-    edge_table = defaultdict(list)
-    
-    # 2. Заполняем таблицу ребер
-    for i in range(len(points)):
-        x1, y1 = points[i]
-        x2, y2 = points[(i + 1) % len(points)]
-        
-        if y1 == y2:
-            continue  # Горизонтальные ребра игнорируем
-        
-        if y1 > y2:
-            x1, x2 = x2, x1
-            y1, y2 = y2, y1
-        
-        dx = x2 - x1
-        dy = y2 - y1
-        inv_slope = dx / dy
-        
-        edge_table[y1].append({'x': x1, 'dx': inv_slope, 'y_max': y2})
-    
-    if not edge_table:
-        return
-    
-    # 3. Находим диапазон сканирования по Y
-    y_min = min(edge_table.keys())
-    y_max = max(edge['y_max'] for edges in edge_table.values() for edge in edges)
-    
-    # 4. Инициализируем активный список ребер (Active Edge List)
-    ael = []
-    
-    for y in range(y_min, y_max + 1):
-        # 5. Добавляем новые ребра из ET в AEL
-        if y in edge_table:
-            ael.extend(edge_table[y])
-        
-        # 6. Удаляем ребра, для которых y >= y_max
-        ael = [edge for edge in ael if y < edge['y_max']]
-        
-        # 7. Сортируем AEL по x координате
-        ael.sort(key=lambda edge: edge['x'])
-        
-        # 8. Заполняем пиксели между парами ребер
-        for i in range(0, len(ael), 2):
-            if i + 1 >= len(ael):
-                break
+    while stack:
+        x, y = stack.pop()
+        if (x < 0 or x >= original_buffer_size[0] or 
+            y < 0 or y >= original_buffer_size[1]):
+            continue
             
-            x_start = int(ael[i]['x'])
-            x_end = int(ael[i + 1]['x'])
-            
-            for x in range(x_start, x_end + 1):
-                draw_pixel(x, y)
+        index = (y * original_buffer_size[0] + x) * 3
+        pixel = (draw_buffer[index], draw_buffer[index+1], draw_buffer[index+2])
         
-        # 9. Обновляем x координаты для следующей строки сканирования
-        for edge in ael:
-            edge['x'] += edge['dx']
+        if pixel != boundary_rgb and pixel != fill_rgb:
+            # Находим левую границу
+            left = x
+            while left >= 0:
+                idx = (y * original_buffer_size[0] + left) * 3
+                px = (draw_buffer[idx], draw_buffer[idx+1], draw_buffer[idx+2])
+                if px == boundary_rgb or px == fill_rgb:
+                    break
+                left -= 1
+            left += 1
+            
+            # Находим правую границу
+            right = x
+            while right < original_buffer_size[0]:
+                idx = (y * original_buffer_size[0] + right) * 3
+                px = (draw_buffer[idx], draw_buffer[idx+1], draw_buffer[idx+2])
+                if px == boundary_rgb or px == fill_rgb:
+                    break
+                right += 1
+            right -= 1
+            
+            # Закрашиваем отрезок
+            for i in range(left, right + 1):
+                idx = (y * original_buffer_size[0] + i) * 3
+                draw_buffer[idx:idx+3] = fill_rgb
+            
+            # Проверяем строки выше и ниже
+            for ny in [y - 1, y + 1]:
+                if 0 <= ny < original_buffer_size[1]:
+                    add_to_stack = False
+                    for i in range(left, right + 1):
+                        idx = (ny * original_buffer_size[0] + i) * 3
+                        px = (draw_buffer[idx], draw_buffer[idx+1], draw_buffer[idx+2])
+                        if px != boundary_rgb and px != fill_rgb:
+                            if not add_to_stack:
+                                stack.append((i, ny))
+                                add_to_stack = True
+                        else:
+                            add_to_stack = False
 
-def fill_polygon():
-    """Заполнение многоугольника с использованием построчного алгоритма"""
-    if len(points) < 3:
+def apply_box_filter():
+    """Применение фильтра усреднения 3x3"""
+    global draw_buffer
+    if draw_buffer is None:
         return
     
-    # Сначала рисуем границы
-    for i in range(len(points)):
-        p1 = points[i]
-        p2 = points[(i + 1) % len(points)]
-        draw_line(p1[0], p1[1], p2[0], p2[1])
+    new_buffer = bytearray(draw_buffer)
+    width, height = original_buffer_size
     
-    # Затем применяем построчное заполнение
-    scanline_fill()
+    for y in range(1, height - 1):
+        for x in range(1, width - 1):
+            # Собираем цвета соседних пикселей
+            neighbors = []
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    idx = ((y + dy) * width + (x + dx)) * 3
+                    r = draw_buffer[idx] / 255.0
+                    g = draw_buffer[idx+1] / 255.0
+                    b = draw_buffer[idx+2] / 255.0
+                    neighbors.append((r, g, b))
+            
+            # Усредняем
+            avg_r = sum(c[0] for c in neighbors) / 9
+            avg_g = sum(c[1] for c in neighbors) / 9
+            avg_b = sum(c[2] for c in neighbors) / 9
+            
+            # Записываем результат
+            idx = (y * width + x) * 3
+            new_buffer[idx] = int(avg_r * 255)
+            new_buffer[idx+1] = int(avg_g * 255)
+            new_buffer[idx+2] = int(avg_b * 255)
+    
+    draw_buffer = new_buffer
+    print("Применена постфильтрация")
 
-def apply_filter():
-    half = filter_size // 2
-    for y in range(half, buffer_height - half):
-        for x in range(half, buffer_width - half):
-            total = 0
-            count = 0
-            for fy in range(-half, half + 1):
-                for fx in range(-half, half + 1):
-                    nx, ny = x + fx, y + fy
-                    if 0 <= nx < buffer_width and 0 <= ny < buffer_height:
-                        total += pixel_buffer[nx][ny]
-                        count += 1
-            filter_buffer[x][y] = 1 if total / count > filter_threshold else 0
+def draw_polygon():
+    """Отрисовка и заполнение многоугольника"""
+    if len(points) < 2:
+        return
+    
+    # Отрисовка границ
+    for i in range(len(points) - 1):
+        bresenham_line(points[i][0], points[i][1], points[i+1][0], points[i+1][1])
+    
+    if len(points) >= 3:
+        bresenham_line(points[-1][0], points[-1][1], points[0][0], points[0][1])
+        
+        # Автоматическая заливка
+        cx = sum(p[0] for p in points) // len(points)
+        cy = sum(p[1] for p in points) // len(points)
+        boundary_fill(cx, cy, (0.0, 0.0, 0.0), (0.5, 0.5, 0.5))
 
 def display(window):
+    """Основная функция отрисовки"""
     glClear(GL_COLOR_BUFFER_BIT)
-    glLoadIdentity()
     
-    glBegin(GL_POINTS)
-    if show_filtered:
-        for x in range(buffer_width):
-            for y in range(buffer_height):
-                if filter_buffer[x][y]:
-                    glColor3f(0.0, 1.0, 0.0)
-                    glVertex2f(x / buffer_width * 2 - 1, 1 - y / buffer_height * 2)
-    else:
-        for x in range(buffer_width):
-            for y in range(buffer_height):
-                if pixel_buffer[x][y]:
-                    if len(points) > 0 and x == points[0][0] and y == points[0][1]:
-                        glColor3f(1.0, 0.0, 0.0)
-                    else:
-                        glColor3f(1.0, 1.0, 1.0)
-                    glVertex2f(x / buffer_width * 2 - 1, 1 - y / buffer_height * 2)
-    glEnd()
+    if draw_buffer is not None:
+        # Масштабирование изображения под текущий размер окна
+        glPixelZoom(
+            current_window_size[0] / original_buffer_size[0],
+            current_window_size[1] / original_buffer_size[1]
+        )
+        glDrawPixels(original_buffer_size[0], original_buffer_size[1], 
+                    GL_RGB, GL_UNSIGNED_BYTE, draw_buffer)
     
     glfw.swap_buffers(window)
     glfw.poll_events()
 
+def key_callback(window, key, scancode, action, mods):
+    """Обработка клавиш"""
+    if action == glfw.PRESS:
+        if key == glfw.KEY_ESCAPE:
+            points.clear()
+            clear_draw_buffer()
+        elif key == glfw.KEY_P:
+            apply_box_filter()
+
 def mouse_button_callback(window, button, action, mods):
-    global points, show_filtered, show_original
-    
+    """Обработка кликов мыши"""
     if button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS:
-        show_original = True
-        show_filtered = False
-        
-        x, y = glfw.get_cursor_pos(window)
-        width, height = glfw.get_window_size(window)
-        x = int(x / width * buffer_width)
-        y = int(y / height * buffer_height)
-        
-        print(f"Added point: ({x}, {y})")
-        
-        if len(points) > 0:
-            draw_line(points[-1][0], points[-1][1], x, y)
+        xpos, ypos = glfw.get_cursor_pos(window)
+        # Нормализация координат к оригинальному размеру буфера
+        x = int(xpos * original_buffer_size[0] / current_window_size[0])
+        y = original_buffer_size[1] - int(ypos * original_buffer_size[1] / current_window_size[1]) - 1
         
         points.append((x, y))
+        print(f"Добавлена точка: ({x}, {y})")
         
-        if len(points) >= 3:
-            clear_buffers()
-            fill_polygon()
-
-def key_callback(window, key, scancode, action, mods):
-    global points, show_filtered, show_original
-    
-    if action == glfw.PRESS:
-        if key == glfw.KEY_F and len(points) >= 3:
-            apply_filter()
-            show_filtered = True
-            show_original = False
-            print("Filter applied (3x3)")
-        elif key == glfw.KEY_O:
-            show_original = True
-            show_filtered = False
-            print("Showing original")
-        elif key == glfw.KEY_C:
-            points.clear()
-            clear_buffers()
-            show_original = True
-            show_filtered = False
-            print("Canvas cleared")
+        if len(points) >= 2:
+            clear_draw_buffer(silent=True)
+            draw_polygon()
 
 def window_size_callback(window, width, height):
-    global window_width, window_height
-    window_width = width
-    window_height = height
+    """Обработка изменения размера окна"""
+    global current_window_size
+    current_window_size = (width, height)
     glViewport(0, 0, width, height)
-    init_pixel_buffer(width, height)
-    
-    if len(points) >= 3:
-        clear_buffers()
-        fill_polygon()
 
 def main():
-    global window_width, window_height
-    
     if not glfw.init():
         return
     
-    window = glfw.create_window(window_width, window_height, "Polygon Rasterization with Scanline Fill", None, None)
+    window = glfw.create_window(640, 640, "Lab3 - Rasterization", None, None)
     if not window:
         glfw.terminate()
         return
@@ -256,10 +240,7 @@ def main():
     glfw.set_mouse_button_callback(window, mouse_button_callback)
     glfw.set_window_size_callback(window, window_size_callback)
     
-    init_pixel_buffer(window_width, window_height)
-    
-    glClearColor(0.0, 0.0, 0.0, 1.0)
-    glPointSize(1.0)
+    init_draw_buffer(640, 640)
     
     while not glfw.window_should_close(window):
         display(window)
