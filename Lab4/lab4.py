@@ -7,13 +7,11 @@ current_window_size = (640, 640)
 draw_buffer = None  
 
 def init_draw_buffer(width, height):
-    """Инициализация буфера для растеризации"""
     global draw_buffer, original_buffer_size
     original_buffer_size = (width, height)
     draw_buffer = bytearray([255] * (width * height * 3))  
 
 def clear_draw_buffer(silent=False):
-    """Очистка буфера для растеризации"""
     global draw_buffer
     if draw_buffer is not None:
         draw_buffer = bytearray([255] * (original_buffer_size[0] * original_buffer_size[1] * 3))
@@ -21,7 +19,6 @@ def clear_draw_buffer(silent=False):
         print("Холст очищен")
 
 def set_pixel(x, y, color=(0.0, 0.0, 0.0)):
-    """Установка пикселя в буфере"""
     global draw_buffer, original_buffer_size
     if 0 <= x < original_buffer_size[0] and 0 <= y < original_buffer_size[1]:
         index = (y * original_buffer_size[0] + x) * 3
@@ -33,7 +30,6 @@ def set_pixel(x, y, color=(0.0, 0.0, 0.0)):
         draw_buffer[index+2] = b
 
 def get_pixel(x, y):
-    """Получение цвета пикселя из буфера"""
     global draw_buffer, original_buffer_size
     if 0 <= x < original_buffer_size[0] and 0 <= y < original_buffer_size[1]:
         index = (y * original_buffer_size[0] + x) * 3
@@ -44,7 +40,6 @@ def get_pixel(x, y):
     return (1.0, 1.0, 1.0) 
 
 def bresenham_line(x0, y0, x1, y1):
-    """Алгоритм Брезенхема для растеризации отрезка"""
     dx = abs(x1 - x0)
     dy = abs(y1 - y0)
     x, y = x0, y0
@@ -71,7 +66,6 @@ def bresenham_line(x0, y0, x1, y1):
     set_pixel(x, y)
 
 def boundary_fill(x, y, boundary_color, fill_color):
-    """Алгоритм построчного заполнения с затравкой"""
     stack = [(x, y)]
     boundary_rgb = tuple(int(c * 255) for c in boundary_color)
     fill_rgb = tuple(int(c * 255) for c in fill_color) 
@@ -116,7 +110,6 @@ def boundary_fill(x, y, boundary_color, fill_color):
                             add_to_stack = False
 
 def apply_box_filter():
-    """Применение фильтра усреднения 3x3"""
     global draw_buffer
     if draw_buffer is None:
         return
@@ -143,7 +136,6 @@ def apply_box_filter():
     print("Применена постфильтрация")
 
 def draw_polygon():
-    """Отрисовка и заполнение многоугольника"""
     if len(points) < 2:
         return
     for i in range(len(points) - 1):
@@ -155,7 +147,6 @@ def draw_polygon():
         boundary_fill(cx, cy, (0.0, 0.0, 0.0), (0.5, 0.5, 0.5))
 
 def display(window):
-    """Основная функция отрисовки"""
     glClear(GL_COLOR_BUFFER_BIT)
     if draw_buffer is not None:
         glPixelZoom(
@@ -168,7 +159,6 @@ def display(window):
     glfw.poll_events()
 
 def key_callback(window, key, scancode, action, mods):
-    """Обработка клавиш"""
     if action == glfw.PRESS:
         if key == glfw.KEY_ESCAPE:
             points.clear()
@@ -177,7 +167,6 @@ def key_callback(window, key, scancode, action, mods):
             apply_box_filter()
 
 def mouse_button_callback(window, button, action, mods):
-    """Обработка кликов мыши"""
     if button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS:
         xpos, ypos = glfw.get_cursor_pos(window)
         x = int(xpos * original_buffer_size[0] / current_window_size[0])
@@ -189,7 +178,6 @@ def mouse_button_callback(window, button, action, mods):
             draw_polygon()
 
 def window_size_callback(window, width, height):
-    """Обработка изменения размера окна"""
     global current_window_size
     current_window_size = (width, height)
     glViewport(0, 0, width, height)
