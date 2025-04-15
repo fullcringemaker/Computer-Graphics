@@ -1,7 +1,5 @@
 import glfw
 from OpenGL.GL import *
-import numpy as np
-from math import cos, sin, pi
 
 # Глобальные переменные
 subject_polygon = []  # Отсекаемый многоугольник
@@ -43,36 +41,21 @@ def display(window):
     # Вращение для лучшей визуализации 3D эффекта
     glRotatef(angle, 0, 0, 1)
     
-    # Отрисовка осей координат
-    draw_axes()
-    
     # Отрисовка многоугольников в зависимости от режима ввода
     if input_mode == 0:
-        draw_polygon(subject_polygon, (0.0, 0.0, 1.0), "Subject Polygon (Enter to finish)")
+        draw_polygon(subject_polygon, (0.0, 0.0, 1.0))
     elif input_mode == 1:
-        draw_polygon(subject_polygon, (0.0, 0.0, 1.0), False)
-        draw_polygon(clip_polygon, (1.0, 0.0, 0.0), "Clip Polygon (Enter to finish)")
+        draw_polygon(subject_polygon, (0.0, 0.0, 1.0))
+        draw_polygon(clip_polygon, (1.0, 0.0, 0.0))
     else:
-        draw_polygon(subject_polygon, (0.0, 0.0, 1.0), False)
-        draw_polygon(clip_polygon, (1.0, 0.0, 0.0), False)
-        draw_polygon(result_polygon, (0.0, 1.0, 0.0), "Result (Space to reset)")
+        draw_polygon(subject_polygon, (0.0, 0.0, 1.0))
+        draw_polygon(clip_polygon, (1.0, 0.0, 0.0))
+        draw_polygon(result_polygon, (0.0, 1.0, 0.0))
     
     glfw.swap_buffers(window)
     glfw.poll_events()
 
-def draw_axes():
-    glBegin(GL_LINES)
-    # Ось X (красная)
-    glColor3f(1.0, 0.0, 0.0)
-    glVertex2f(-1.5, 0.0)
-    glVertex2f(1.5, 0.0)
-    # Ось Y (зеленая)
-    glColor3f(0.0, 1.0, 0.0)
-    glVertex2f(0.0, -1.5)
-    glVertex2f(0.0, 1.5)
-    glEnd()
-
-def draw_polygon(polygon, color, label):
+def draw_polygon(polygon, color):
     if not polygon:
         return
     
@@ -89,13 +72,6 @@ def draw_polygon(polygon, color, label):
     for point in polygon:
         glVertex2f(*point)
     glEnd()
-    
-    # Выводим подпись если нужно
-    if label:
-        glColor3f(0.0, 0.0, 0.0)
-        glRasterPos2f(-1.4, -1.4)
-        for c in label:
-            glutBitmapCharacter(GLUT_BITMAP_9_BY_15, ord(c))
 
 def mouse_button_callback(window, button, action, mods):
     if button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS:
@@ -401,8 +377,4 @@ def is_point_inside_polygon(point, polygon):
     return inside
 
 if __name__ == "__main__":
-    from OpenGL.GLUT import glutInit, glutBitmapCharacter, GLUT_BITMAP_9_BY_15
-    import sys
-    
-    glutInit(sys.argv)
     main()
