@@ -10,7 +10,7 @@ angle = 0
 def main():
     if not glfw.init():
         return
-    window = glfw.create_window(800, 800, "Weiler-Atherton Clipping", None, None)
+    window = glfw.create_window(800, 800, "Lab5", None, None)
     if not window:
         glfw.terminate()
         return
@@ -244,7 +244,6 @@ def build_result_polygon(subject_list, clip_list):
     while start_node:
         current_list = subject_list
         polygon_part = []
-        
         node = start_node
         while True:
             polygon_part.append(node['point'])
@@ -288,7 +287,6 @@ def is_point_inside_polygon(point, polygon):
                     if p1x == p2x or x <= xinters:
                         inside = not inside
         p1x, p1y = p2x, p2y
-    
     return inside
 
 if __name__ == "__main__":
