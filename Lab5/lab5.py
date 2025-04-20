@@ -17,7 +17,6 @@ def main():
     glfw.make_context_current(window)
     glfw.set_key_callback(window, key_callback)
     glfw.set_mouse_button_callback(window, mouse_button_callback)
-    glfw.set_scroll_callback(window, scroll_callback)
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     glOrtho(-1.5, 1.5, -1.5, 1.5, -1, 1)
@@ -42,7 +41,6 @@ def display(window):
         draw_polygon(subject_polygon, (0.0, 0.0, 1.0))
         draw_polygon(clip_polygon, (1.0, 0.0, 0.0))
         draw_polygon(result_polygon, (0.0, 1.0, 0.0))
-    
     glfw.swap_buffers(window)
     glfw.poll_events()
 
@@ -85,18 +83,13 @@ def key_callback(window, key, scancode, action, mods):
             subject_polygon = []
             clip_polygon = []
             result_polygon = []
-        
         elif key == glfw.KEY_LEFT:
             angle -= 5
         elif key == glfw.KEY_RIGHT:
             angle += 5
 
-def scroll_callback(window, xoffset, yoffset):
-    pass
-
 def weiler_atherton_clip(subject_poly, clip_poly):
     intersections = find_intersections(subject_poly, clip_poly)
-    
     if not intersections:
         if is_point_inside_polygon(subject_poly[0], clip_poly):
             return subject_poly.copy()
@@ -106,7 +99,6 @@ def weiler_atherton_clip(subject_poly, clip_poly):
     clip_list = insert_intersections(clip_poly, intersections, is_subject=False)
     mark_entries_exits(subject_list, clip_list)
     result = build_result_polygon(subject_list, clip_list)
-    
     return result
 
 def find_intersections(subject, clip):
@@ -169,7 +161,6 @@ def insert_intersections(polygon, intersections, is_subject):
         if intersect['edge'][0] != current_edge:
             edge_intersections.sort(key=lambda x: point_position_on_edge(
                 polygon[current_edge], polygon[(current_edge+1)%len(polygon)], x['point']))
-            
             for ei in edge_intersections:
                 idx = current_edge + 1 + offset
                 poly_list.insert(idx, {
@@ -240,7 +231,6 @@ def build_result_polygon(subject_list, clip_list):
             return [n['point'] for n in subject_list if not n['is_intersection']]
         else:
             return []
-    
     while start_node:
         current_list = subject_list
         polygon_part = []
