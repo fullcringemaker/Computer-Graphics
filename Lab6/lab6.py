@@ -4,7 +4,6 @@ from OpenGL.GLU import *
 import math
 import numpy as np
 from PIL import Image
-
 angle_x, angle_y, angle_z = 0.0, 0.0, 0.0
 size = 1.0
 wireframe = False
