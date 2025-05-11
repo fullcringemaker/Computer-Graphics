@@ -12,56 +12,43 @@ sectors, stacks = 20, 20
 light_enabled = True
 texture_enabled = True
 attenuation_enabled = True
-
 position = [0.0, 0.0, 0.0]
 velocity = [0.03, 0.05, 0.02] 
 box_size = 4.0 
-
 texture_id = 0
 
 def main():
     global texture_id
-    
     if not glfw.init():
         return
-    
     window = glfw.create_window(640, 640, "Lab6", None, None)
     if not window:
         glfw.terminate()
         return
-    
     glfw.make_context_current(window)
     glfw.set_key_callback(window, key_callback)
-    
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_LIGHTING)
     glEnable(GL_LIGHT0)
     glEnable(GL_NORMALIZE)
-    
     texture_id = generate_checkerboard_texture()
-    
     setup_lighting()
-    
     while not glfw.window_should_close(window):
         display(window)
         update_position()
-    
     glfw.destroy_window(window)
     glfw.terminate()
 
 def setup_lighting():
     glLightModelfv(GL_LIGHT_MODEL_AMBIENT, [0.1, 0.1, 0.1, 1.0])
-    
     light_pos = [4.0, 4.0, 4.0, 1.0] 
     light_diffuse = [1.0, 1.0, 1.0, 1.0]
     light_specular = [1.0, 1.0, 1.0, 1.0]
     light_ambient = [0.2, 0.2, 0.2, 1.0]
-    
     glLightfv(GL_LIGHT0, GL_POSITION, light_pos)
     glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse)
     glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular)
     glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient)
-    
     if attenuation_enabled:
         glLightf(GL_LIGHT0, GL_CONSTANT_ATTENUATION, 1.0)
         glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 0.2) 
@@ -70,12 +57,10 @@ def setup_lighting():
         glLightf(GL_LIGHT0, GL_CONSTANT_ATTENUATION, 1.0)
         glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 0.0)
         glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.0)
-    
     material_diffuse = [0.7, 0.7, 0.7, 1.0]
     material_specular = [0.9, 0.9, 0.9, 1.0]
     material_ambient = [0.1, 0.1, 0.1, 1.0]
     material_shininess = [50.0]
-    
     glMaterialfv(GL_FRONT, GL_DIFFUSE, material_diffuse)
     glMaterialfv(GL_FRONT, GL_SPECULAR, material_specular)
     glMaterialfv(GL_FRONT, GL_AMBIENT, material_ambient)
@@ -91,7 +76,6 @@ def generate_checkerboard_texture():
             else:
                 texture_data[i, j] = [50, 50, 50]    
     texture_data = texture_data.flatten()
-    
     texture_id = glGenTextures(1)
     glBindTexture(GL_TEXTURE_2D, texture_id)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
@@ -102,44 +86,35 @@ def generate_checkerboard_texture():
 def display(window):
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glClearColor(0.1, 0.1, 0.1, 1.0)
-    
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     aspect = 640 / 640
     gluPerspective(45, aspect, 0.1, 50.0)
-    
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
     gluLookAt(0, 0, 8, 0, 0, 0, 0, 1, 0) 
-    
     draw_bounding_box()
-    
     if light_enabled:
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
     else:
         glDisable(GL_LIGHTING)
-    
     if texture_enabled:
         glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, texture_id)
     else:
         glDisable(GL_TEXTURE_2D)
-    
     glPushMatrix()
     glTranslatef(position[0], position[1], position[2])
     glRotatef(angle_x, 1, 0, 0)
     glRotatef(angle_y, 0, 1, 0)
     glRotatef(angle_z, 0, 0, 1)
     glScalef(size, size, size)
-    
     if wireframe:
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
     else:
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
-    
     draw_sphere(sectors, stacks)
-    
     glPopMatrix()
     glfw.swap_buffers(window)
     glfw.poll_events()
@@ -150,7 +125,6 @@ def draw_bounding_box():
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
     glDisable(GL_LIGHTING)
     glDisable(GL_TEXTURE_2D)
-    
     half_size = box_size / 2
     vertices = [
         [-half_size, -half_size, -half_size],
@@ -162,19 +136,16 @@ def draw_bounding_box():
         [half_size, half_size, half_size],
         [-half_size, half_size, half_size]
     ]
-    
     edges = [
         (0,1), (1,2), (2,3), (3,0),
         (4,5), (5,6), (6,7), (7,4),
         (0,4), (1,5), (2,6), (3,7)
     ]
-    
     glBegin(GL_LINES)
     for edge in edges:
         for vertex in edge:
             glVertex3fv(vertices[vertex])
     glEnd()
-    
     glEnable(GL_LIGHTING)
     glPopMatrix()
 
@@ -186,43 +157,35 @@ def draw_sphere(sectors, stacks):
         for j in range(sectors):
             phi1 = j * 2 * math.pi / sectors
             phi2 = (j + 1) * 2 * math.pi / sectors
-            
             p1 = spherical_to_cartesian(radius, theta1, phi1)
             p2 = spherical_to_cartesian(radius, theta2, phi1)
             p3 = spherical_to_cartesian(radius, theta2, phi2)
             p4 = spherical_to_cartesian(radius, theta1, phi2)
-            
             n1 = spherical_to_cartesian(1.0, theta1, phi1)
             n2 = spherical_to_cartesian(1.0, theta2, phi1)
             n3 = spherical_to_cartesian(1.0, theta2, phi2)
             n4 = spherical_to_cartesian(1.0, theta1, phi2)
-            
             glBegin(GL_TRIANGLES)
             if texture_enabled:
                 glTexCoord2f(j/sectors, i/stacks)
             glNormal3fv(n1)
             glVertex3fv(p1)
-            
             if texture_enabled:
                 glTexCoord2f(j/sectors, (i+1)/stacks)
             glNormal3fv(n2)
             glVertex3fv(p2)
-            
             if texture_enabled:
                 glTexCoord2f((j+1)/sectors, (i+1)/stacks)
             glNormal3fv(n3)
             glVertex3fv(p3)
-            
             if texture_enabled:
                 glTexCoord2f(j/sectors, i/stacks)
             glNormal3fv(n1)
-            glVertex3fv(p1)
-            
+            glVertex3fv(p1)  
             if texture_enabled:
                 glTexCoord2f((j+1)/sectors, (i+1)/stacks)
             glNormal3fv(n3)
             glVertex3fv(p3)
-            
             if texture_enabled:
                 glTexCoord2f((j+1)/sectors, i/stacks)
             glNormal3fv(n4)
@@ -239,7 +202,6 @@ def update_position():
     global position, velocity
     for i in range(3):
         position[i] += velocity[i]
-    
     half_size = box_size / 2 - size * 1.1
     for i in range(3):
         if position[i] > half_size:
@@ -252,7 +214,6 @@ def update_position():
 def key_callback(window, key, scancode, action, mods):
     global angle_x, angle_y, angle_z, wireframe, sectors, stacks
     global light_enabled, texture_enabled, attenuation_enabled
-    
     if action == glfw.PRESS or action == glfw.REPEAT:
         if key == glfw.KEY_X: angle_x += 5
         elif key == glfw.KEY_Y: angle_y += 5
