@@ -5,7 +5,6 @@ import math
 import numpy as np
 from PIL import Image
 
-# Глобальные переменные
 angle_x, angle_y, angle_z = 0.0, 0.0, 0.0
 size = 1.0
 wireframe = False
@@ -14,12 +13,10 @@ light_enabled = True
 texture_enabled = True
 attenuation_enabled = True
 
-# Параметры движения
 position = [0.0, 0.0, 0.0]
-velocity = [0.03, 0.05, 0.02]  # Увеличена скорость для лучшей демонстрации
-box_size = 4.0  # Увеличен размер коробки
+velocity = [0.03, 0.05, 0.02] 
+box_size = 4.0 
 
-# Текстура
 texture_id = 0
 
 def main():
@@ -28,7 +25,7 @@ def main():
     if not glfw.init():
         return
     
-    window = glfw.create_window(640, 640, "Lab3 - Lighting and Textures", None, None)
+    window = glfw.create_window(640, 640, "Lab6", None, None)
     if not window:
         glfw.terminate()
         return
@@ -36,16 +33,13 @@ def main():
     glfw.make_context_current(window)
     glfw.set_key_callback(window, key_callback)
     
-    # Инициализация OpenGL
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_LIGHTING)
     glEnable(GL_LIGHT0)
     glEnable(GL_NORMALIZE)
     
-    # Загрузка текстуры (шахматная доска)
     texture_id = generate_checkerboard_texture()
     
-    # Настройка освещения
     setup_lighting()
     
     while not glfw.window_should_close(window):
@@ -56,11 +50,9 @@ def main():
     glfw.terminate()
 
 def setup_lighting():
-    # Глобальное освещение
     glLightModelfv(GL_LIGHT_MODEL_AMBIENT, [0.1, 0.1, 0.1, 1.0])
     
-    # Параметры источника света (теперь дальше от центра)
-    light_pos = [4.0, 4.0, 4.0, 1.0]  # Позиция источника
+    light_pos = [4.0, 4.0, 4.0, 1.0] 
     light_diffuse = [1.0, 1.0, 1.0, 1.0]
     light_specular = [1.0, 1.0, 1.0, 1.0]
     light_ambient = [0.2, 0.2, 0.2, 1.0]
@@ -70,17 +62,15 @@ def setup_lighting():
     glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular)
     glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient)
     
-    # Сильное ослабление для наглядности
     if attenuation_enabled:
         glLightf(GL_LIGHT0, GL_CONSTANT_ATTENUATION, 1.0)
-        glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 0.2)  # Увеличенный коэффициент
-        glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.1)  # Увеличенный коэффициент
+        glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 0.2) 
+        glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.1)  
     else:
         glLightf(GL_LIGHT0, GL_CONSTANT_ATTENUATION, 1.0)
         glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 0.0)
         glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.0)
     
-    # Параметры материала (уменьшена яркость для лучшего контраста)
     material_diffuse = [0.7, 0.7, 0.7, 1.0]
     material_specular = [0.9, 0.9, 0.9, 1.0]
     material_ambient = [0.1, 0.1, 0.1, 1.0]
@@ -97,9 +87,9 @@ def generate_checkerboard_texture():
     for i in range(width):
         for j in range(height):
             if (i // 8 + j // 8) % 2 == 0:
-                texture_data[i, j] = [200, 200, 200]  # Светлые клетки
+                texture_data[i, j] = [200, 200, 200] 
             else:
-                texture_data[i, j] = [50, 50, 50]     # Тёмные клетки
+                texture_data[i, j] = [50, 50, 50]    
     texture_data = texture_data.flatten()
     
     texture_id = glGenTextures(1)
@@ -113,35 +103,29 @@ def display(window):
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glClearColor(0.1, 0.1, 0.1, 1.0)
     
-    # Настройка проекции
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     aspect = 640 / 640
     gluPerspective(45, aspect, 0.1, 50.0)
     
-    # Настройка вида
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
-    gluLookAt(0, 0, 8, 0, 0, 0, 0, 1, 0)  # Камера немного ближе
+    gluLookAt(0, 0, 8, 0, 0, 0, 0, 1, 0) 
     
-    # Рисуем ограничивающий объем
     draw_bounding_box()
     
-    # Включение/выключение освещения
     if light_enabled:
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
     else:
         glDisable(GL_LIGHTING)
     
-    # Включение/выключение текстуры
     if texture_enabled:
         glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, texture_id)
     else:
         glDisable(GL_TEXTURE_2D)
     
-    # Применяем трансформации к объекту
     glPushMatrix()
     glTranslatef(position[0], position[1], position[2])
     glRotatef(angle_x, 1, 0, 0)
@@ -149,13 +133,11 @@ def display(window):
     glRotatef(angle_z, 0, 0, 1)
     glScalef(size, size, size)
     
-    # Режим отрисовки
     if wireframe:
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
     else:
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
     
-    # Рисуем объект
     draw_sphere(sectors, stacks)
     
     glPopMatrix()
@@ -290,9 +272,9 @@ def key_callback(window, key, scancode, action, mods):
             print(f"Текстура: {'ВКЛ' if texture_enabled else 'ВЫКЛ'}")
         elif key == glfw.KEY_A:
             attenuation_enabled = not attenuation_enabled
-            setup_lighting()  # Перезагружаем настройки света
+            setup_lighting() 
             print(f"Ослабление света: {'ВКЛ' if attenuation_enabled else 'ВЫКЛ'}")
-        elif key == glfw.KEY_R:  # Сброс
+        elif key == glfw.KEY_R: 
             global position, velocity
             position = [0.0, 0.0, 0.0]
             velocity = [0.03, 0.05, 0.02]
