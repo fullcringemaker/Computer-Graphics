@@ -2,8 +2,6 @@ import glfw
 from OpenGL.GL import *
 from OpenGL.GLU import *
 import math
-import numpy as np
-from PIL import Image
 
 angle_x, angle_y, angle_z = 0.0, 0.0, 0.0
 size = 1.0
@@ -68,19 +66,20 @@ def setup_lighting():
 
 def generate_checkerboard_texture():
     width, height = 64, 64
-    texture_data = np.zeros((width, height, 3), dtype=np.uint8)
-    for i in range(width):
-        for j in range(height):
+    texture_data = []
+    for i in range(height):
+        for j in range(width):
             if (i // 8 + j // 8) % 2 == 0:
-                texture_data[i, j] = [200, 200, 200] 
+                texture_data.extend([200, 200, 200])
             else:
-                texture_data[i, j] = [50, 50, 50]    
-    texture_data = texture_data.flatten()
+                texture_data.extend([50, 50, 50])
+    texture_bytes = bytes(texture_data)
     texture_id = glGenTextures(1)
     glBindTexture(GL_TEXTURE_2D, texture_id)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture_data)
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, 
+                GL_RGB, GL_UNSIGNED_BYTE, texture_bytes)
     return texture_id
 
 def display(window):
