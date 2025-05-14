@@ -3,7 +3,6 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 import math
 from PIL import Image
-import time  # Добавлено для подсчета FPS
 
 angle_x, angle_y, angle_z = 0.0, 0.0, 0.0
 size = 1.0
@@ -17,22 +16,14 @@ velocity = [0.03, 0.05, 0.02]
 box_size = 4.0 
 texture_id = 0
 
-# Добавлено для FPS
-frame_count = 0
-fps = 0
-last_time = time.time()
-
 def main():
-    global texture_id, last_time, frame_count, fps  # Добавлено для FPS
-    
+    global texture_id
     if not glfw.init():
         return
-    
     window = glfw.create_window(640, 640, "Lab6", None, None)
     if not window:
         glfw.terminate()
         return
-    
     glfw.make_context_current(window)
     glfw.set_key_callback(window, key_callback)
     glEnable(GL_DEPTH_TEST)
@@ -41,21 +32,19 @@ def main():
     glEnable(GL_NORMALIZE)
     texture_id = generate_checkerboard_texture()
     setup_lighting()
-    
+    # Переменные для расчёта FPS
+    frame_count = 0
+    last_time = glfw.get_time()
     while not glfw.window_should_close(window):
-        # Начало блока подсчета FPS
-        global frame_count, fps, last_time
-        frame_count += 1
-        current_time = time.time()
-        if current_time - last_time >= 1.0:
-            fps = frame_count
-            frame_count = 0
-            last_time = current_time
-        # Конец блока подсчета FPS
-        
         display(window)
         update_position()
-    
+        # Счётчик FPS
+        frame_count += 1
+        current_time = glfw.get_time()
+        if current_time - last_time >= 1.0:  # Раз в секунду
+            print(f"FPS: {frame_count}")
+            frame_count = 0
+            last_time = current_time
     glfw.destroy_window(window)
     glfw.terminate()
 
@@ -115,21 +104,16 @@ def display(window):
     glLoadIdentity()
     gluLookAt(0, 0, 8, 0, 0, 0, 0, 1, 0) 
     draw_bounding_box()
-    
-    # Добавлено: отображение FPS
-    glDisable(GL_LIGHTING)
-    glDisable(GL_TEXTURE_2D)
-    glColor3f(1.0, 1.0, 1.0)
-    glWindowPos2f(10, 10)
-    for c in f"FPS: {fps}":
-        glutBitmapCharacter(GLUT_BITMAP_9_BY_15, ord(c))
     if light_enabled:
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
+    else:
+        glDisable(GL_LIGHTING)
     if texture_enabled:
         glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, texture_id)
-    
+    else:
+        glDisable(GL_TEXTURE_2D)
     glPushMatrix()
     glTranslatef(position[0], position[1], position[2])
     glRotatef(angle_x, 1, 0, 0)
@@ -267,6 +251,4 @@ def key_callback(window, key, scancode, action, mods):
             velocity = [0.03, 0.05, 0.02]
 
 if __name__ == "__main__":
-    from OpenGL.GLUT import glutInit, glutBitmapCharacter, GLUT_BITMAP_9_BY_15  # Добавлено для FPS
-    glutInit()  # Инициализация GLUT для работы с битовыми шрифтами
     main()
