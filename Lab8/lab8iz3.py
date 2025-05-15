@@ -139,7 +139,7 @@ def main():
     global angle_x, angle_y, angle_z, size, wireframe, sectors, stacks
     if not glfw.init():
         return
-    window = glfw.create_window(640, 640, "Lab3", None, None)
+    window = glfw.create_window(640, 640, "Lab8", None, None)
     if not window:
         glfw.terminate()
         return
